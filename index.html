@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barisan Aritmatika Interactive - Web AR</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>📊</text></svg>">
+    
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Control Panel */
+        #ui-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            max-width: 280px;
+            color: #2c3e50;
+            font-size: 13px;
+        }
+
+        #ui-panel h2 {
+            color: #1e3c72;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            color: #34495e;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 80px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #multiply-btn {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+        }
+
+        #multiply-btn:hover {
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
+        }
+
+        #multiply-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.6;
+        }
+
+        #reset-btn {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        #reset-btn:hover {
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+        }
+
+        /* Formula Display */
+        #formula {
+            font-size: 14px;
+            color: #1e3c72;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        /* Progress Info */
+        #progress-info {
+            background: rgba(52, 152, 219, 0.1);
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            margin-top: 8px;
+            font-size: 12px;
+            color: #34495e;
+        }
+
+        .progress-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+
+        .progress-value {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        /* Status Panel */
+        #status-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 10px 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            color: #2c3e50;
+            font-size: 11px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+        }
+
+        .status-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #95a5a6;
+        }
+
+        .status-icon.active {
+            background: #27ae60;
+            animation: pulse 2s infinite;
+        }
+
+        .status-icon.error {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 768px) {
+            #ui-panel {
+                max-width: 280px;
+                padding: 15px;
+                top: 10px;
+                left: 10px;
+            }
+
+            #status-panel {
+                top: 10px;
+                right: 10px;
+                font-size: 11px;
+            }
+
+            .btn {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- UI Panel -->
+    <div id="ui-panel">
+        <h2>📊 Barisan Aritmatika</h2>
+        <div id="formula">Un = a + (n - 1)b</div>
+        
+        <div class="button-group">
+            <button id="multiply-btn" class="btn">➕ Tambah</button>
+            <button id="reset-btn" class="btn">🔄 Reset</button>
+        </div>
+
+        <div id="progress-info">
+            <div class="progress-row">
+                <span>Marker Target:</span>
+                <span id="target-info" class="progress-value">-</span>
+            </div>
+            <div class="progress-row">
+                <span>Nilai b:</span>
+                <span id="current-b" class="progress-value">-</span>
+            </div>
+            <div class="progress-row">
+                <span>Jumlah Objek:</span>
+                <span id="object-count" class="progress-value">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Panel -->
+    <div id="status-panel">
+        <div class="status-item">
+            <div class="status-icon active"></div>
+            <span>MindAR Ready</span>
+        </div>
+        <div class="status-item">
+            <div id="marker-status" class="status-icon error"></div>
+            <span id="marker-text">Marker: Scan</span>
+        </div>
+    </div>
+
+    <!-- A-Frame Scene -->
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind;" 
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights: false" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <!-- Simple lighting -->
+        <a-light type="ambient" color="white" intensity="2"></a-light>
+
+        <!-- Target 0: b = 2 -->
+        <a-entity id="target-0" mindar-image-target="targetIndex: 0">
+            <a-entity id="container-0" position="0 0 0"></a-entity>
+        </a-entity>
+
+        <!-- Target 1: b = 3 -->
+        <a-entity id="target-1" mindar-image-target="targetIndex: 1">
+            <a-entity id="container-1" position="0 0 0"></a-entity>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        // ========== CONFIG ==========
+        const TARGETS = {
+            0: { name: 'target.mind', a: 2, b: 2 },
+            1: { name: 'targets2.mind', a: 3, b: 3 }
+        };
+
+        // ========== STATE ==========
+        let currentTarget = null;
+        let currentA = 0;
+        let currentB = 0;
+        let objectCount = 0;
+        let isSceneReady = false;
+        const containers = {};
+
+        // ========== SCENE SETUP ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            const sceneEl = document.querySelector('a-scene');
+            containers[0] = document.querySelector('#container-0');
+            containers[1] = document.querySelector('#container-1');
+            
+            console.log('Container 0:', containers[0]);
+            console.log('Container 1:', containers[1]);
+
+            // Get AR System
+            let arSystem;
+            sceneEl.addEventListener('loaded', function() {
+                arSystem = sceneEl.systems['mindar-image-system'];
+                isSceneReady = true;
+                console.log('✅ Scene Ready');
+            });
+
+            // Handle target found
+            document.querySelector('#target-0').addEventListener('targetFound', () => {
+                console.log('🎯🎯🎯 TARGET 0 FOUND! 🎯🎯🎯');
+                currentTarget = 0;
+                currentB = TARGETS[0].b;
+                updateUI();
+                createInitialObjects();
+                updateMarkerStatus('found', `Target 0 - b=${currentB}`);
+            });
+
+            document.querySelector('#target-1').addEventListener('targetFound', () => {
+                console.log('🎯🎯🎯 TARGET 1 FOUND! 🎯🎯🎯');
+                currentTarget = 1;
+                currentB = TARGETS[1].b;
+                updateUI();
+                createInitialObjects();
+                updateMarkerStatus('found', `Target 1 - b=${currentB}`);
+            });
+
+            // Handle target lost
+            document.querySelector('#target-0').addEventListener('targetLost', () => {
+                if (currentTarget === 0) {
+                    currentTarget = null;
+                    updateMarkerStatus('lost', 'Marker lost');
+                }
+            });
+
+            document.querySelector('#target-1').addEventListener('targetLost', () => {
+                if (currentTarget === 1) {
+                    currentTarget = null;
+                    updateMarkerStatus('lost', 'Marker lost');
+                }
+            });
+
+            // Button events
+            document.getElementById('multiply-btn').addEventListener('click', multiplyObjects);
+            document.getElementById('reset-btn').addEventListener('click', () => {
+                if (currentTarget === null) {
+                    alert('Scan marker terlebih dahulu!');
+                    return;
+                }
+                
+                const container = containers[currentTarget];
+                if (!container) return;
+                
+                // Safe clear using innerHTML
+                container.innerHTML = '';
+                objectCount = 0;
+                updateUI();
+                console.log('🔄 Objects cleared');
+            });
+        });
+
+        // ========== FUNCTIONS ==========
+
+        function createInitialObjects() {
+            if (currentTarget === null) {
+                console.error('❌ No target selected');
+                return;
+            }
+            
+            if (!containers[currentTarget]) {
+                console.error(`❌ Container ${currentTarget} not found`);
+                return;
+            }
+            
+            const container = containers[currentTarget];
+            console.log(`📍 Target ${currentTarget} detected, container:`, container);
+            
+            // Check if already has objects
+            const existing = container.querySelectorAll('.ar-model');
+            if (existing.length > 0) {
+                console.log('✅ Objects already exist, skipping');
+                objectCount = existing.length;
+                updateUI();
+                return;
+            }
+            
+            // Create objects dengan delay yang cukup
+            setTimeout(() => {
+                try {
+                    console.log(`🎯 Creating ${currentB} objects for target ${currentTarget}`);
+                    
+                    // Create b objects initially
+                    for (let i = 0; i < currentB; i++) {
+                        const model = createModel(i);
+                        container.appendChild(model);
+                        console.log(`   └─ Object ${i} appended to container`);
+                    }
+                    
+                    // Verify objects ada di DOM
+                    const afterCreate = container.querySelectorAll('.ar-model');
+                    console.log(`✅ Total objects in DOM: ${afterCreate.length}`);
+                    
+                    objectCount = currentB;
+                    updateUI();
+                    console.log(`📍 Created ${currentB} initial objects`);
+                } catch (error) {
+                    console.error('❌ Error in createInitialObjects:', error);
+                }
+            }, 300);
+        }
+
+        function createModel(index) {
+            // Position in a row
+            const spacing = 0.3;
+            const x = (index - currentB / 2) * spacing;
+            const y = 0.5;  // Offset tinggi agar jelas di atas marker
+            const z = 0;
+            
+            // Generate solid colors
+            const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+            const color = colors[index % colors.length];
+            
+            // Create container for box + text
+            const container = document.createElement('a-entity');
+            container.setAttribute('position', `${x} ${y} ${z}`);
+            container.classList.add('ar-model');
+            
+            // Create simple box - NO ANIMATION
+            const box = document.createElement('a-box');
+            box.setAttribute('width', '0.2');
+            box.setAttribute('height', '0.2');
+            box.setAttribute('depth', '0.2');
+            box.setAttribute('color', color);
+            box.setAttribute('position', '0 0 0');
+            box.setAttribute('scale', '1 1 1');  // Fixed scale, tidak animasi
+            
+            // Calculate barisan value: Un = a + (n-1)*b
+            const un = currentA + index * currentB;
+            
+            // Create text label
+            const text = document.createElement('a-text');
+            text.setAttribute('value', un.toString());
+            text.setAttribute('align', 'center');
+            text.setAttribute('anchor', 'center');
+            text.setAttribute('color', '#FFFFFF');
+            text.setAttribute('scale', '0.3 0.3 0.3');
+            text.setAttribute('position', '0 0.15 0');
+            text.setAttribute('baseline', 'bottom');
+            
+            container.appendChild(box);
+            container.appendChild(text);
+            
+            console.log(`✅ Creating box at (${x}, ${y}, ${z}) with color ${color} and value ${un}`);
+            
+            return container;
+        }
+
+        function multiplyObjects() {
+            if (currentTarget === null) {
+                alert('Scan marker terlebih dahulu!');
+                return;
+            }
+
+            const container = containers[currentTarget];
+            const currentCount = container.querySelectorAll('.ar-model').length;
+            
+            // Create currentB more objects
+            for (let i = 0; i < currentB; i++) {
+                const model = createModel(currentCount + i);
+                container.appendChild(model);
+            }
+            
+            objectCount = container.querySelectorAll('.ar-model').length;
+            updateUI();
+            console.log(`➕ Now have ${objectCount} objects`);
+        }
+
+        function updateUI() {
+            if (currentTarget === null) {
+                document.getElementById('target-info').textContent = '-';
+                document.getElementById('current-b').textContent = '-';
+            } else {
+                document.getElementById('target-info').textContent = `Target ${currentTarget}`;
+                document.getElementById('current-b').textContent = currentB;
+            }
+            document.getElementById('object-count').textContent = objectCount;
+        }
+
+        function updateMarkerStatus(status, text) {
+            const icon = document.getElementById('marker-status');
+            const span = document.getElementById('marker-text');
+            
+            if (status === 'found') {
+                icon.classList.add('active');
+                icon.classList.remove('error');
+            } else {
+                icon.classList.remove('active');
+                icon.classList.add('error');
+            }
+            span.textContent = text;
+        }
+
+        // Init UI
+        console.log('🌟 App Ready');
+        updateUI();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barisan Aritmatika Interactive - Web AR</title>
+    
+    <!-- MindAR with Three.js using importmap -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+      }
+    }
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            overflow: hidden;
+            color: #fff;
+        }
+
+        /* Container utama */
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Video webcam */
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        /* Canvas AR */
+        #canvas {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* ========== ERROR & STATUS SCREENS ========== */
+        
+        /* Permission Error Screen */
+        #permission-error {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 30px;
+            text-align: center;
+        }
+
+        #permission-error .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        #permission-error h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #e74c3c;
+        }
+
+        #permission-error p {
+            font-size: 18px;
+            line-height: 1.6;
+            max-width: 500px;
+            color: #bdc3c7;
+        }
+
+        /* MindAR Load Error */
+        #mindar-error {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 30px;
+            text-align: center;
+        }
+
+        #mindar-error .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        #mindar-error h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #f39c12;
+        }
+
+        #mindar-error p {
+            font-size: 18px;
+            line-height: 1.6;
+            max-width: 500px;
+            color: #bdc3c7;
+        }
+
+        /* Loading Screen */
+        #loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loading h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        #loading p {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        /* Start AR Button */
+        #start-ar-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(52, 152, 219, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1001;
+            display: none;
+        }
+
+        #start-ar-btn:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+            box-shadow: 0 15px 40px rgba(52, 152, 219, 0.6);
+        }
+
+        #start-ar-btn:active {
+            transform: translate(-50%, -50%) scale(0.98);
+        }
+
+        /* ========== UI OVERLAY ========== */
+        
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px 35px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            z-index: 100;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            min-width: 350px;
+            max-width: 90vw;
+        }
+
+        #title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        #formula {
+            font-size: 24px;
+            color: #e74c3c;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: rgba(236, 240, 241, 0.8);
+            border-radius: 12px;
+            border-left: 4px solid #e74c3c;
+        }
+
+        /* Input Section */
+        .input-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #label-b {
+            font-size: 18px;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        #input-b {
+            width: 80px;
+            padding: 12px 15px;
+            font-size: 18px;
+            border: 2px solid #3498db;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        #input-b:focus {
+            outline: none;
+            border-color: #2980b9;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+        }
+
+        /* Button Section */
+        .button-section {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        #add-term-btn {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+        }
+
+        #add-term-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
+        }
+
+        #add-term-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #reset-btn {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        #reset-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+        }
+
+        /* Progress Info */
+        #progress-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(52, 152, 219, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+
+        #progress-info h4 {
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .progress-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 14px;
+            color: #34495e;
+        }
+
+        .progress-value {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        /* Error Message */
+        #error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 10px;
+            min-height: 20px;
+            font-weight: bold;
+        }
+
+        /* ========== STATUS INDICATORS ========== */
+        
+        #status-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            min-width: 180px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .status-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #95a5a6;
+        }
+
+        .status-icon.active {
+            background: #27ae60;
+            animation: pulse 2s infinite;
+        }
+
+        .status-icon.warning {
+            background: #f39c12;
+        }
+
+        .status-icon.error {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* ========== INSTRUCTION PANEL ========== */
+        
+        #instruction-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            max-width: 280px;
+        }
+
+        #instruction-panel h4 {
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+
+        #instruction-panel ol {
+            color: #34495e;
+            font-size: 14px;
+            line-height: 1.6;
+            padding-left: 20px;
+        }
+
+        #instruction-panel li {
+            margin: 8px 0;
+        }
+
+        /* Marker Preview */
+        #marker-preview {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            text-align: center;
+            max-width: 150px;
+        }
+
+        #marker-img {
+            width: 100px;
+            height: 100px;
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        #marker-preview p {
+            color: #2c3e50;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        
+        @media (max-width: 768px) {
+            #ui-overlay {
+                min-width: 300px;
+                padding: 20px 25px;
+                top: 10px;
+            }
+
+            #title {
+                font-size: 24px;
+            }
+
+            #formula {
+                font-size: 18px;
+            }
+
+            .input-section {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .button-section {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            #input-b {
+                width: 70px;
+                padding: 10px 12px;
+                font-size: 16px;
+            }
+
+            #status-panel {
+                top: 10px;
+                right: 10px;
+                padding: 10px 15px;
+                min-width: 150px;
+            }
+
+            #instruction-panel,
+            #marker-preview {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #ui-overlay {
+                min-width: 280px;
+                padding: 15px 20px;
+            }
+
+            #title {
+                font-size: 20px;
+            }
+
+            #formula {
+                font-size: 16px;
+            }
+
+            .status-item {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- ========== ERROR SCREENS ========== -->
+        
+        <!-- Permission Error -->
+        <div id="permission-error">
+            <div class="icon">📹</div>
+            <h2>Izin Kamera Diperlukan</h2>
+            <p>
+                Aplikasi ini memerlukan akses kamera untuk menampilkan Augmented Reality.<br><br>
+                Silakan izinkan kamera di browser Anda dan refresh halaman.
+            </p>
+        </div>
+
+        <!-- MindAR Load Error -->
+        <div id="mindar-error">
+            <div class="icon">⚠️</div>
+            <h2>MindAR Gagal Dimuat</h2>
+            <p>
+                Library MindAR tidak dapat dimuat.<br><br>
+                Periksa koneksi internet Anda atau coba refresh halaman.
+            </p>
+        </div>
+
+        <!-- ========== LOADING SCREEN ========== -->
+        <div id="loading">
+            <div class="spinner"></div>
+            <h2>Memuat Aplikasi AR...</h2>
+            <p>Mohon tunggu sebentar</p>
+        </div>
+
+        <!-- Start AR Button -->
+        <button id="start-ar-btn">🚀 Start AR Experience</button>
+
+        <!-- Video Element untuk Kamera -->
+        <video id="video" autoplay muted playsinline></video>
+        
+        <!-- Canvas untuk Three.js -->
+        <canvas id="canvas"></canvas>
+
+        <!-- ========== UI OVERLAY ========== -->
+        <div id="ui-overlay">
+            <h1 id="title">Barisan Aritmatika</h1>
+            <div id="formula">Un = a + (n - 1)b</div>
+            
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="input-b" id="label-b">Nilai b:</label>
+                    <input type="number" id="input-b" value="2" min="1" max="6" step="1">
+                </div>
+            </div>
+            
+            <div class="button-section">
+                <button id="add-term-btn" class="btn">➕ Tambah Suku</button>
+                <button id="reset-btn" class="btn">🔄 Reset</button>
+            </div>
+            
+            <div id="progress-info">
+                <h4>Progress Barisan</h4>
+                <div class="progress-row">
+                    <span>Suku ke:</span>
+                    <span class="progress-value" id="current-n">1</span>
+                </div>
+                <div class="progress-row">
+                    <span>Nilai a:</span>
+                    <span class="progress-value" id="current-a">2</span>
+                </div>
+                <div class="progress-row">
+                    <span>Nilai b:</span>
+                    <span class="progress-value" id="current-b-display">2</span>
+                </div>
+                <div class="progress-row">
+                    <span>Suku terakhir (Un):</span>
+                    <span class="progress-value" id="current-un">2</span>
+                </div>
+            </div>
+            
+            <div id="error-message"></div>
+        </div>
+
+        <!-- ========== STATUS PANEL ========== -->
+        <div id="status-panel">
+            <div class="status-item">
+                <div class="status-icon" id="camera-status"></div>
+                <span>Kamera</span>
+            </div>
+            <div class="status-item">
+                <div class="status-icon" id="mindar-status"></div>
+                <span>MindAR</span>
+            </div>
+            <div class="status-item">
+                <div class="status-icon" id="marker-status"></div>
+                <span>Marker</span>
+            </div>
+        </div>
+
+        <!-- ========== INSTRUCTION PANEL ========== -->
+        <div id="instruction-panel">
+            <h4>🎓 Cara Menggunakan:</h4>
+            <ol>
+                <li>Klik <strong>"Start AR Experience"</strong></li>
+                <li>Izinkan akses kamera</li>
+                <li>Arahkan kamera ke marker</li>
+                <li>Klik <strong>"Tambah Suku"</strong> untuk melihat pertumbuhan barisan</li>
+                <li>Ubah nilai <strong>b</strong> untuk variasi berbeda</li>
+            </ol>
+        </div>
+
+        <!-- ========== MARKER PREVIEW ========== -->
+        <div id="marker-preview">
+            <img id="marker-img" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" alt="Marker">
+            <p>Arahkan kamera ke marker ini</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { MindARThree } from 'mindar-image-three';
+
+        // ========== CONFIGURATION ==========
+        const CONFIG = {
+            a: 2, // Nilai awal
+            maxBigCubes: 6, // Maksimal cube besar
+            maxB: 6, // Maksimal nilai b
+            bigCubeSize: 0.5, // Ukuran cube besar
+            smallCubeSize: 0.15, // Ukuran cube kecil (representasi b)
+            spacingZ: 0.8, // Jarak antar cube besar (z-axis)
+            spacingX: 0.25, // Jarak antar cube kecil (x-axis)
+            bigCubeColor: 0x3498db, // Warna biru untuk cube besar
+            smallCubeColor: 0xe74c3c, // Warna merah untuk cube kecil
+            textColor: '#FFFFFF',
+            animationDuration: 400, // Durasi animasi
+        };
+
+        // ========== GLOBAL VARIABLES ==========
+        let mindarThree;
+        let scene, camera, renderer;
+        let anchor;
+        let groundGroup; // THREE.Group sebagai ground virtual
+        
+        let bigCubes = []; // Array untuk cube besar
+        let smallCubesGroups = []; // Array untuk grup cube kecil
+        
+        let currentN = 1; // Suku ke-n saat ini
+        let currentB = 2; // Nilai b saat ini
+        let isARStarted = false;
+        let isMarkerFound = false;
+
+        // ========== UTILITY FUNCTIONS ==========
+
+        // Fungsi untuk menghitung suku ke-n
+        function calculateUn(a, b, n) {
+            return a + (n - 1) * b;
+        }
+
+        // Fungsi untuk menampilkan error
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = message;
+            setTimeout(() => {
+                errorElement.textContent = '';
+            }, 4000);
+        }
+
+        // Fungsi untuk update progress info
+        function updateProgressInfo() {
+            const un = calculateUn(CONFIG.a, currentB, currentN);
+            document.getElementById('current-n').textContent = currentN;
+            document.getElementById('current-a').textContent = CONFIG.a;
+            document.getElementById('current-b-display').textContent = currentB;
+            document.getElementById('current-un').textContent = un;
+        }
+
+        // Fungsi untuk update status indicator
+        function updateStatus(type, status) {
+            const icon = document.getElementById(`${type}-status`);
+            icon.className = 'status-icon';
+            
+            switch(status) {
+                case 'active':
+                    icon.classList.add('active');
+                    break;
+                case 'warning':
+                    icon.classList.add('warning');
+                    break;
+                case 'error':
+                    icon.classList.add('error');
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // ========== TEXTURE CREATION ==========
+
+        // Fungsi untuk membuat texture dengan angka
+        function createNumberTexture(number, isBigCube = true) {
+            const canvas = document.createElement('canvas');
+            const size = isBigCube ? 512 : 256;
+            canvas.width = size;
+            canvas.height = size;
+            
+            const context = canvas.getContext('2d');
+            
+            // Background transparan
+            context.fillStyle = 'rgba(0, 0, 0, 0)';
+            context.fillRect(0, 0, size, size);
+            
+            // Text styling
+            context.fillStyle = CONFIG.textColor;
+            context.font = isBigCube ? 'bold 200px Arial' : 'bold 100px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            
+            // Add text shadow
+            context.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            context.shadowBlur = isBigCube ? 20 : 10;
+            context.shadowOffsetX = isBigCube ? 5 : 3;
+            context.shadowOffsetY = isBigCube ? 5 : 3;
+            
+            // Draw number
+            context.fillText(number.toString(), size / 2, size / 2);
+            
+            // Create texture
+            const texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true;
+            
+            return texture;
+        }
+
+        // ========== 3D OBJECT CREATION ==========
+
+        // Fungsi untuk membuat cube besar (suku barisan)
+        function createBigCube(number, position) {
+            const geometry = new THREE.BoxGeometry(CONFIG.bigCubeSize, CONFIG.bigCubeSize, CONFIG.bigCubeSize);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: CONFIG.bigCubeColor,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.copy(position);
+            cube.scale.set(0, 0, 0); // Start dari scale 0 untuk animasi
+            
+            // Create number texture
+            const numberTexture = createNumberTexture(number, true);
+            
+            // Material untuk angka
+            const numberMaterial = new THREE.MeshBasicMaterial({ 
+                map: numberTexture,
+                transparent: true
+            });
+            
+            // Geometry untuk plane angka (di depan cube)
+            const numberGeometry = new THREE.PlaneGeometry(CONFIG.bigCubeSize * 0.8, CONFIG.bigCubeSize * 0.8);
+            const numberMesh = new THREE.Mesh(numberGeometry, numberMaterial);
+            
+            // Position angka di tengah dan sedikit di depan
+            numberMesh.position.z = CONFIG.bigCubeSize / 2 + 0.02;
+            
+            cube.add(numberMesh);
+            
+            // Store references
+            cube.userData = { 
+                number: number, 
+                numberMesh: numberMesh,
+                isBigCube: true
+            };
+            
+            return cube;
+        }
+
+        // Fungsi untuk membuat cube kecil (representasi b)
+        function createSmallCube(position) {
+            const geometry = new THREE.BoxGeometry(CONFIG.smallCubeSize, CONFIG.smallCubeSize, CONFIG.smallCubeSize);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: CONFIG.smallCubeColor,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.copy(position);
+            cube.scale.set(0, 0, 0); // Start dari scale 0
+            
+            return cube;
+        }
+
+        // Fungsi untuk membuat grup cube kecil (representasi nilai b)
+        function createSmallCubesGroup(b, position) {
+            const group = new THREE.Group();
+            group.position.copy(position);
+            
+            for (let i = 0; i < b; i++) {
+                const smallCubePos = new THREE.Vector3(
+                    i * CONFIG.spacingX,
+                    0,
+                    0
+                );
+                const smallCube = createSmallCube(smallCubePos);
+                group.add(smallCube);
+            }
+            
+            return group;
+        }
+
+        // ========== ANIMATION FUNCTIONS ==========
+
+        // Animasi scale up untuk cube
+        function animateScaleUp(object, delay = 0) {
+            setTimeout(() => {
+                const startTime = Date.now();
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / CONFIG.animationDuration, 1);
+                    
+                    // Easing function (ease-out-back)
+                    const easeProgress = 1 + 2.7 * Math.pow(progress - 1, 3) + 1.7 * Math.pow(progress - 1, 2);
+                    
+                    const scale = Math.max(0, Math.min(1, easeProgress));
+                    object.scale.set(scale, scale, scale);
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        object.scale.set(1, 1, 1);
+                    }
+                };
+                animate();
+            }, delay);
+        }
+
+        // ========== BARISAN LOGIC ==========
+
+        // Fungsi untuk menambah suku baru
+        function addTerm() {
+            if (!isARStarted || !isMarkerFound) {
+                showError('Arahkan kamera ke marker terlebih dahulu!');
+                return;
+            }
+
+            if (currentN >= CONFIG.maxBigCubes) {
+                showError(`Maksimal ${CONFIG.maxBigCubes} suku telah tercapai!`);
+                return;
+            }
+
+            // Hitung posisi untuk cube besar baru
+            const bigCubePos = new THREE.Vector3(
+                0,
+                0,
+                -(currentN - 1) * CONFIG.spacingZ
+            );
+
+            // Hitung nilai Un
+            const un = calculateUn(CONFIG.a, currentB, currentN);
+
+            // Create cube besar
+            const bigCube = createBigCube(un, bigCubePos);
+            groundGroup.add(bigCube);
+            bigCubes.push(bigCube);
+
+            // Animasi cube besar muncul
+            animateScaleUp(bigCube, 0);
+
+            // Jika bukan suku pertama, tambahkan cube kecil sebagai jejak proses
+            if (currentN > 1) {
+                // Posisi cube kecil di samping kanan cube besar sebelumnya
+                const prevBigCubeIndex = bigCubes.length - 2;
+                if (prevBigCubeIndex >= 0) {
+                    const smallCubesPos = new THREE.Vector3(
+                        CONFIG.bigCubeSize / 2 + CONFIG.smallCubeSize,
+                        0,
+                        -(prevBigCubeIndex) * CONFIG.spacingZ
+                    );
+                    
+                    const smallCubesGroup = createSmallCubesGroup(currentB, smallCubesPos);
+                    groundGroup.add(smallCubesGroup);
+                    smallCubesGroups.push(smallCubesGroup);
+
+                    // Animasi cube kecil muncul dengan stagger
+                    smallCubesGroup.children.forEach((cube, index) => {
+                        animateScaleUp(cube, 100 + (index * 100));
+                    });
+                }
+            }
+
+            // Update UI
+            updateProgressInfo();
+            
+            // Disable button jika sudah maksimal
+            if (currentN >= CONFIG.maxBigCubes) {
+                document.getElementById('add-term-btn').disabled = true;
+            }
+        }
+
+        // Fungsi untuk reset barisan
+        function resetBarisan() {
+            if (!groundGroup) return;
+
+            // Remove semua cubes
+            bigCubes.forEach(cube => {
+                groundGroup.remove(cube);
+            });
+            
+            smallCubesGroups.forEach(group => {
+                groundGroup.remove(group);
+            });
+
+            bigCubes = [];
+            smallCubesGroups = [];
+            currentN = 1;
+
+            // Re-enable button
+            document.getElementById('add-term-btn').disabled = false;
+
+            updateProgressInfo();
+        }
+
+        // Fungsi untuk update nilai b
+        function updateB() {
+            const inputValue = document.getElementById('input-b').value;
+            const b = parseInt(inputValue);
+
+            if (isNaN(b) || b < 1 || b > CONFIG.maxB) {
+                showError(`Nilai b harus antara 1 dan ${CONFIG.maxB}!`);
+                document.getElementById('input-b').value = currentB;
+                return;
+            }
+
+            currentB = b;
+            updateProgressInfo();
+            
+            // Visual feedback
+            const btn = document.getElementById('add-term-btn');
+            btn.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
+            setTimeout(() => {
+                btn.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
+            }, 300);
+        }
+
+        // ========== PERMISSION & ERROR HANDLING ==========
+
+        // Cek environment (HTTPS atau localhost)
+        function checkEnvironment() {
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1' ||
+                               window.location.hostname === '';
+            const isHTTPS = window.location.protocol === 'https:';
+            
+            if (!isLocalhost && !isHTTPS) {
+                showError('Aplikasi harus dijalankan di HTTPS atau localhost untuk akses kamera!');
+                return false;
+            }
+            return true;
+        }
+
+        // Request kamera permission dengan user interaction
+        async function requestCameraPermission() {
+            try {
+                updateStatus('camera', 'warning');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                
+                // Stop stream sementara (akan di-handle MindAR)
+                stream.getTracks().forEach(track => track.stop());
+                
+                updateStatus('camera', 'active');
+                return true;
+                
+            } catch (error) {
+                console.error('Camera permission denied:', error);
+                
+                // Tampilkan permission error screen
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('permission-error').style.display = 'flex';
+                
+                updateStatus('camera', 'error');
+                return false;
+            }
+        }
+
+        // ========== MINDAR INITIALIZATION ==========
+
+        // Helper function untuk wait hingga library loaded
+        async function waitForMindAR(maxWait = 5000) {
+            const startTime = Date.now();
+            let lastCheck = Date.now();
+            
+            while (!window.MindARThree || !MindARThree) {
+                const elapsed = Date.now() - startTime;
+                
+                if (elapsed > maxWait) {
+                    console.error('MindAR library still not loaded after', elapsed, 'ms');
+                    throw new Error('MindAR library timeout - gagal dimuat setelah ' + elapsed + 'ms');
+                }
+                
+                // Log progress every 2 seconds
+                if (Date.now() - lastCheck > 2000) {
+                    console.log('Waiting for MindAR... (' + elapsed + 'ms elapsed)');
+                    lastCheck = Date.now();
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            console.log('✅ MindAR library loaded successfully');
+        }
+
+        async function initMindAR() {
+            try {
+                // Tunggu hingga MindAR library loaded
+                await waitForMindAR();
+
+                updateStatus('mindar', 'active');
+
+                // Konfigurasi MindAR
+                mindarThree = new MindARThree({
+                    container: document.getElementById('container'),
+                    imageTargetSrc: './targets.mind',
+                    maxTrack: 1,
+                    uiLoading: 'no',
+                    uiScanning: 'no',
+                    missTolerance: 10,
+                    warmupTolerance: 10,
+                });
+
+                // Extract scene, camera, renderer
+                scene = mindarThree.scene;
+                camera = mindarThree.camera;
+                renderer = mindarThree.renderer;
+                
+                // Setup renderer
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                
+                // Setup lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                directionalLight.position.set(1, 1, 1);
+                scene.add(directionalLight);
+
+                // Create anchor
+                anchor = mindarThree.addAnchor(0);
+
+                // Create ground group yang akan di-attach ke anchor
+                groundGroup = new THREE.Group();
+                anchor.group.add(groundGroup);
+
+                // Event listeners untuk anchor
+                anchor.onTargetFound = () => {
+                    console.log('✅ Marker ditemukan!');
+                    isMarkerFound = true;
+                    updateStatus('marker', 'active');
+                    
+                    // Feedback visual
+                    document.getElementById('add-term-btn').style.opacity = '1';
+                };
+
+                anchor.onTargetLost = () => {
+                    console.log('⚠️ Marker hilang');
+                    isMarkerFound = false;
+                    updateStatus('marker', 'warning');
+                    
+                    // Feedback visual
+                    document.getElementById('add-term-btn').style.opacity = '0.6';
+                };
+
+                // Sembunyikan loading, tampilkan UI
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('video').style.display = 'block';
+                document.getElementById('ui-overlay').style.display = 'block';
+                document.getElementById('status-panel').style.display = 'block';
+                document.getElementById('instruction-panel').style.display = 'block';
+                document.getElementById('marker-preview').style.display = 'block';
+                
+                // Start MindAR
+                await mindarThree.start();
+                
+                isARStarted = true;
+                console.log('🚀 AR started successfully!');
+                
+                // Start animation loop
+                animate();
+                
+            } catch (error) {
+                console.error('❌ Error initializing MindAR:', error);
+                
+                // Tampilkan MindAR error screen
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('mindar-error').style.display = 'flex';
+                
+                updateStatus('mindar', 'error');
+            }
+        }
+
+        // ========== MAIN INITIALIZATION ==========
+
+        async function startAR() {
+            // Sembunyikan start button
+            document.getElementById('start-ar-btn').style.display = 'none';
+            
+            // Cek environment
+            if (!checkEnvironment()) {
+                return;
+            }
+
+            // Request camera permission
+            const hasPermission = await requestCameraPermission();
+            if (!hasPermission) {
+                return;
+            }
+
+            // Initialize MindAR
+            await initMindAR();
+        }
+
+        // ========== ANIMATION LOOP ==========
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (mindarThree && isARStarted) {
+                mindarThree.update();
+                
+                if (renderer && scene && camera) {
+                    renderer.render(scene, camera);
+                }
+            }
+        }
+
+        // ========== EVENT LISTENERS ==========
+
+        // Start AR button
+        document.getElementById('start-ar-btn').addEventListener('click', startAR);
+
+        // Tambah suku button
+        document.getElementById('add-term-btn').addEventListener('click', addTerm);
+
+        // Reset button
+        document.getElementById('reset-btn').addEventListener('click', resetBarisan);
+
+        // Input b change
+        document.getElementById('input-b').addEventListener('change', updateB);
+
+        // Input b enter key
+        document.getElementById('input-b').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                updateB();
+            }
+        });
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            if (renderer && camera) {
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+            }
+        });
+
+        // Global error handler
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+            
+            // Tampilkan error spesifik jika terkait MindAR
+            if (event.error.message && event.error.message.includes('MINDAR')) {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('mindar-error').style.display = 'flex';
+                updateStatus('mindar', 'error');
+            }
+        });
+
+        // ========== INITIAL PAGE LOAD ==========
+
+        window.addEventListener('load', () => {
+            console.log('🌟 Barisan Aritmatika AR loaded');
+            
+            // Validasi environment
+            if (!checkEnvironment()) {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('start-ar-btn').style.display = 'block';
+            } else {
+                // Tampilkan start button setelah delay singkat
+                setTimeout(() => {
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('start-ar-btn').style.display = 'block';
+                }, 1000);
+            }
+
+            // Initialize progress info
+            updateProgressInfo();
+            
+            // Set initial status
+            updateStatus('camera', 'error'); // Belum diizinkan
+            updateStatus('mindar', 'warning'); // Belum dimuat
+            updateStatus('marker', 'error'); // Belum ditemukan
+        });
+
+        // ========== DEBUG HELPERS ==========
+
+        // Log untuk debugging
+        const isLocalhostCheck = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1' ||
+                               window.location.hostname === '';
+        console.log('Environment:', {
+            protocol: window.location.protocol,
+            hostname: window.location.hostname,
+            isHTTPS: window.location.protocol === 'https:',
+            isLocalhost: isLocalhostCheck
+        });
+        console.log('MindARThree available:', !!MindARThree);
+        console.log('THREE available:', !!THREE);
+    </script>
+</body>
+</html>
