@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Barisan Aritmatika Interactive - Web AR</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>📊</text></svg>">
     
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
@@ -55,7 +54,20 @@
             color: #34495e;
         }
 
-        .button-group {
+        .input-group input {
+            padding: 6px 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 60px;
+            text-align: center;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
@@ -260,6 +272,11 @@
         <h2>📊 Barisan Aritmatika</h2>
         <div id="formula">Un = a + (n - 1)b</div>
         
+        <div class="input-group">
+            <label for="b-input">Nilai b:</label>
+            <input type="number" id="b-input" min="1" max="10" value="2" step="1">
+        </div>
+        
         <div class="button-group">
             <button id="multiply-btn" class="btn">➕ Tambah</button>
             <button id="reset-btn" class="btn">🔄 Reset</button>
@@ -354,7 +371,10 @@
                 console.log('🎯🎯🎯 TARGET 0 FOUND! 🎯🎯🎯');
                 currentTarget = 0;
                 currentA = TARGETS[0].a;
-                currentB = TARGETS[0].b;
+                // Gunakan nilai dari input field jika user sudah mengubah, kalau tidak pakai default
+                const bInputValue = parseInt(document.getElementById('b-input').value, 10);
+                currentB = isNaN(bInputValue) ? TARGETS[0].b : bInputValue;
+                document.getElementById('b-input').value = currentB;
                 updateUI();
                 createInitialObjects();
                 updateMarkerStatus('found', `Target 0 - b=${currentB}`);
@@ -364,7 +384,10 @@
                 console.log('🎯🎯🎯 TARGET 1 FOUND! 🎯🎯🎯');
                 currentTarget = 1;
                 currentA = TARGETS[1].a;
-                currentB = TARGETS[1].b;
+                // Gunakan nilai dari input field jika user sudah mengubah, kalau tidak pakai default
+                const bInputValue = parseInt(document.getElementById('b-input').value, 10);
+                currentB = isNaN(bInputValue) ? TARGETS[1].b : bInputValue;
+                document.getElementById('b-input').value = currentB;
                 updateUI();
                 createInitialObjects();
                 updateMarkerStatus('found', `Target 1 - b=${currentB}`);
@@ -401,6 +424,32 @@
                 objectCount = 0;
                 updateUI();
                 console.log('🔄 Objects cleared');
+            });
+
+            // B Input change event
+            document.getElementById('b-input').addEventListener('change', (e) => {
+                const newB = parseInt(e.target.value, 10);
+                if (isNaN(newB) || newB < 1 || newB > 10) {
+                    alert('Nilai b harus antara 1 dan 10');
+                    e.target.value = currentB || 2;
+                    return;
+                }
+                
+                console.log(`🔄 Mengubah b dari ${currentB} ke ${newB}`);
+                currentB = newB;
+                
+                // Jika ada marker terdeteksi, reset objects dengan nilai b yang baru
+                if (currentTarget !== null) {
+                    const container = containers[currentTarget];
+                    if (container) {
+                        container.innerHTML = '';
+                        objectCount = 0;
+                        createInitialObjects();
+                        console.log(`✅ Objects di-reset dengan b baru: ${newB}`);
+                    }
+                }
+                
+                updateUI();
             });
         });
 
